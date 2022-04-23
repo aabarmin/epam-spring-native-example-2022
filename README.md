@@ -7,6 +7,10 @@ Directory structure:
 
 # Examples
 
+- [Installing GraalVM using SDKMan](#installing-graalvm-using-sdkman)
+- [Hello World example](#hello-world-example)
+- [Hello World Native Image example](#hello-world-native-image-example)
+
 ## Installing GraalVM using SDKMan
 
 1. Install SDKMan from https://sdkman.io
