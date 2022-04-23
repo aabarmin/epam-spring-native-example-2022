@@ -59,3 +59,19 @@ $ mvn clean compile
 $ cd target/classes
 $ native-image dev.abarmin.graalvm.HelloWorldApplication
 ```
+
+## Hello World Native image with Apache Maven example
+
+In order not to build the native image on your own, it is possible to use Apache Maven native image plugin. First, it is necessary to add the plugin and in the configuration section add the `<mainClass />` value:
+
+```xml
+<configuration>
+    <mainClass>dev.abarmin.graalvm.HelloWorldApplication</mainClass>
+</configuration>
+```
+
+To build the image using Apache Maven, execute the following command:
+
+```shell
+$ mvn clean package -P native
+```
