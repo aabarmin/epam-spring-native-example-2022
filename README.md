@@ -10,6 +10,7 @@ Directory structure:
 - [Installing GraalVM using SDKMan](#installing-graalvm-using-sdkman)
 - [Hello World example](#hello-world-example)
 - [Hello World Native Image example](#hello-world-native-image-example)
+- [Hello World + reflection example](#hello-world--reflection-example)
 
 ## Installing GraalVM using SDKMan
 
