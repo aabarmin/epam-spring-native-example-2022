@@ -179,3 +179,38 @@ The feature needs to be registered in the `native-image.properties` file using t
 ```
 Args = --features=dev.abarmin.graalvm.RuntimeReflectionConfigurationFeature
 ```
+
+Another important aspect is that tests are ordinary executed using JVM version of the application. If you take a look into the test code you'll see that the `MessageProvidersTest` test is executed successfully. However, it will fail in case of execution against the native image:
+
+```shell
+$ ./mvnw clean package -P native-test
+
+...
+
+JUnit Platform on Native Image - report
+----------------------------------------
+
+dev.abarmin.graalvm.MessageProvidersTest > [1] dev.abarmin.graalvm.HelloWorldProvider, Hello, World! SUCCESSFUL
+
+dev.abarmin.graalvm.MessageProvidersTest > [2] dev.abarmin.graalvm.TestMessageProvider, Hello from test FAILED
+
+Failures (1):
+  JUnit Jupiter:MessageProvidersTest:test(String, String):[2] dev.abarmin.graalvm.TestMessageProvider, Hello from test
+    MethodSource [className = 'dev.abarmin.graalvm.MessageProvidersTest', methodName = 'test', methodParameterTypes = 'java.lang.String, java.lang.String']
+    => java.lang.ClassNotFoundException: dev.abarmin.graalvm.TestMessageProvider
+       [...]
+
+Test run finished after 7 ms
+[         3 containers found      ]
+[         0 containers skipped    ]
+[         3 containers started    ]
+[         0 containers aborted    ]
+[         3 containers successful ]
+[         0 containers failed     ]
+[         2 tests found           ]
+[         0 tests skipped         ]
+[         2 tests started         ]
+[         0 tests aborted         ]
+[         1 tests successful      ]
+[         1 tests failed          ]
+```
