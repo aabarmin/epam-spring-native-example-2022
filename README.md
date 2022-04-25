@@ -214,3 +214,24 @@ Test run finished after 7 ms
 [         1 tests successful      ]
 [         1 tests failed          ]
 ```
+
+## Spring Native example
+
+When a new Spring Boot project is created, it is possible to add Spring Native to the list of dependencies and during the `package` phase pre-configured Apache Maven plugins will build not only fat jars but also native images.
+
+To use this opportunity you have two options:
+
+- add `-P native` to the Apache Maven command (`./mvnw clean package -P native`)
+- use `spring-boot:build-image` Apache Maven goal
+
+In the first case, the executable will be built locally using locally installed GraalVM and Native Image distribution. In the second case, an executable will be built inside a docker container using Buildpacks. As a result, you'll get a Docker image with the native executable inside. That's good because there is no cross-compilation - you can't build a native executable on MacOS and next pack it into the container with Linux inside.
+
+The build itself takes time however the executable then starts very quick:
+
+```shell
+Example goes here...
+```
+
+Nevertheless, everything that is happening under the hood is generation of the `reflect-config.json` file by Spring AOT plugin. Let's take a look into it's capabilities.
+
+If you run the `spring-aot:generate` goal you'll see that many files are generated for the existing Spring application.
