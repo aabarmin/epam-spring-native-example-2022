@@ -1,0 +1,22 @@
+@startuml spring-sources-compilation
+    (*) --> "Spring Boot Application sources"
+    --> [javac] "Application Bytecode"
+    
+    --> ==F1==
+
+    partition "AOT Plugin" {
+        --> [Spring AOT Plugin] "AOT Sources"
+        --> ==F10==
+        --> [javac] "AOT Bytecode"
+        --> ==F11==
+
+        ==F10== --> "Native Configuration"
+        --> ==F11==
+    }
+    
+    --> ==F2==
+
+    ==F1== --> ==F2==
+    --> [Native Image Compiler] "Native Image"
+    
+@enduml

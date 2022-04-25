@@ -150,6 +150,52 @@ Spring Native provides support for compiling Spring-based apps using GraalVM nat
 
 ---
 
+![bg right h:95%](./images/spring-sources-compilation.png)
+
+# Spring AOP
+
+- Prepares `BeanFactory` in order not to configure it during runtime (read `@Configuration` classes, post-processing, etc).
+- Generates code based on the configured `BeanFactory`.
+- Additional code generation, ex. creation of `reflect-config.json`.
+
+<!--
+
+Spring AOT inspects an application at build-time and generates an optimized version of it. Based on your @SpringBootApplication-annotated main class, the AOT engine generates a persistent view of the beans that are going to be contributed at runtime in a way that bean instantiation is as straightforward as possible. Additional post-processing of the factory is possible using callbacks. For instance, these are used to generate the necessary reflection configuration that GraalVM needs to initialize the context in a native image.
+
+--->
+
+---
+
+![bg right](./images/pexels-pixabay-460635.jpg)
+
+# Bean Factory Preparations
+
+- Computation of `@ConditionalOn`-s.
+- Profiles evaluation.
+- Invoke any `BeanDefinitionRegistryPostProcessor` to create beans declared at runtime.
+
+---
+
+![bg right](./images/pexels-cameron-casey-1152849.jpg)
+
+# Code Generation
+
+Based on `RootBeanDefinition` Spring AOT finds a suitable `BeanRegistrationWriter` that will write a code that is responsible for initialization of a bean at runtime.
+
+---
+
+![bg right](./images/pexels-daniel-lazarov-2762921.jpg)
+
+# Native Hints
+
+- `@TypeHint`
+- `@NativeHint`
+- `BeanFactoryNativeConfigurationProcessor`
+- `BeanNativeConfigurationProcessor`
+- `NativeConfiguration`
+
+---
+
 <!-- header: Summary -->
 
 ![bg right](./images/pexels-maxime-levrel-6457077.jpg)
