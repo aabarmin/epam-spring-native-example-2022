@@ -184,15 +184,13 @@ Based on `RootBeanDefinition` Spring AOT finds a suitable `BeanRegistrationWrite
 
 ---
 
-![bg right](./images/pexels-daniel-lazarov-2762921.jpg)
-
 # Native Hints
 
-- `@TypeHint`
-- `@NativeHint`
-- `BeanFactoryNativeConfigurationProcessor`
-- `BeanNativeConfigurationProcessor`
-- `NativeConfiguration`
+- `@TypeHint` - for simple reflection
+- `@NativeHint` - more complicated cases like field or method-level access
+- `BeanFactoryNativeConfigurationProcessor` - good for bean introspection
+- `BeanNativeConfigurationProcessor` - to inspect `BeanInstanceDescription` of every bean
+- `NativeConfiguration` for hints not related to beans or `BeanFactory`
 
 ---
 

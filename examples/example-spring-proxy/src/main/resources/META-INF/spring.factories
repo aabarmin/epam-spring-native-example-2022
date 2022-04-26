@@ -1,0 +1,2 @@
+#org.springframework.nativex.type.NativeConfiguration=dev.abarmin.graalvm.MyCustomBeanFactoryNativeConfigurationProcessor
+#org.springframework.aot.context.bootstrap.generator.infrastructure.nativex.BeanNativeConfigurationProcessor=\dev.abarmin.graalvm.MyBeanNativeConfigurationProcessor
