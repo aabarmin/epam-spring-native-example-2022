@@ -8,7 +8,7 @@ import org.springframework.nativex.type.NativeConfiguration;
 /**
  * @author Aleksandr Barmin
  */
-public class MyCustomBeanFactoryNativeConfigurationProcessor implements NativeConfiguration {
+public class MyCustomNativeConfiguration implements NativeConfiguration {
   @Override
   public void computeHints(NativeConfigurationRegistry registry, AotOptions aotOptions) {
     registry.proxy().add(NativeProxyEntry.ofInterfaces(

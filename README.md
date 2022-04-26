@@ -11,6 +11,8 @@ Directory structure:
 - [Hello World example](#hello-world-example)
 - [Hello World Native Image example](#hello-world-native-image-example)
 - [Hello World + reflection example](#hello-world--reflection-example)
+- [Spring Native Example](#spring-native-example)
+- [Spring Native Hints Example](#spring-native-hints-example)
 
 ## Installing GraalVM using SDKMan
 
@@ -235,3 +237,114 @@ Example goes here...
 Nevertheless, everything that is happening under the hood is generation of the `reflect-config.json` file by Spring AOT plugin. Let's take a look into it's capabilities.
 
 If you run the `spring-aot:generate` goal you'll see that many files are generated for the existing Spring application.
+
+## Spring Native Hints example
+
+Let's move forward and write a simple Spring Boot application that introduces some low-level improvements and aspects into the code, for example, adds `@LogAroundMethod` annotation which allows to understand how much time invocation of a method took.
+
+The annotation is simple:
+
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface LogAroundMethod {
+}
+```
+
+In order to make this annotation work, it possible to introduce Spring's aspect but for simplicity I will use a simple `BeanPostProcessor` which wraps classes with this annotation into JDK Dynamic Proxy:
+
+```java
+@Component
+public class LogAroundMethodBeanPostProcessor implements BeanPostProcessor {
+  private final Map<String,  Class<?>> beans = new HashMap<>();
+
+  @Override
+  public Object postProcessBeforeInitialization(Object bean, String beanName) throws BeansException {
+    if (bean.getClass().getAnnotation(LogAroundMethod.class) != null) {
+      beans.put(beanName, bean.getClass());
+    }
+    return bean;
+  }
+
+  @Override
+  public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
+    if (!beans.containsKey(beanName)) {
+      return bean;
+    }
+    final Class<?> beanClass = beans.get(beanName);
+    return Proxy.newProxyInstance(beanClass.getClassLoader(), beanClass.getInterfaces(), (proxy, method, args) -> {
+      try {
+        System.out.println("Started at " + LocalDateTime.now());
+        return method.invoke(bean, args);
+      } finally {
+        System.out.println("Ended at " + LocalDateTime.now());
+      }
+    });
+  }
+}
+```
+
+This code will work if started in JDK mode but will not work if a native image is generated and started:
+
+```
+2022-04-26 13:48:14.404 ERROR 53877 --- [           main] o.s.boot.SpringApplication               : Application run failed
+
+org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'dev.abarmin.graalvm.HelloWorldApplication': Unsatisfied dependency expressed through field 'customService'; nested exception is org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'myCustomServiceImpl': Initialization of bean failed; nested exception is com.oracle.svm.core.jdk.UnsupportedFeatureError: Proxy class defined by interfaces [interface dev.abarmin.graalvm.MyCustomService] not found. Generating proxy classes at runtime is not supported. Proxy classes need to be defined at image build time by specifying the list of interfaces that they implement. To define proxy classes use -H:DynamicProxyConfigurationFiles=<comma-separated-config-files> and -H:DynamicProxyConfigurationResources=<comma-separated-config-resources> options.
+```
+
+Technically, it says that the application does not contain the proxy class. There are a few options to fix it. The simplest one is to add `@NativeHint` to any class annotated with `@Configuration` annotation. Like this:
+
+```java
+@NativeHint(
+   jdkProxies = @JdkProxyHint(types = {
+       MyCustomService.class
+   })
+)
+@SpringBootApplication
+public class HelloWorldApplication implements ApplicationRunner {
+  // ...
+}
+```
+
+This approach works good however it is necessary to be aware of all the JDK proxies in advance. Another disadvantage is that it is necessary to put code in annotations.
+
+Let's use the next approach by introducing own `NativeConfiguration` class.
+
+```java
+public class MyCustomNativeConfiguration implements NativeConfiguration {
+  @Override
+  public void computeHints(NativeConfigurationRegistry registry, AotOptions aotOptions) {
+    registry.proxy().add(NativeProxyEntry.ofInterfaces(
+        MyCustomService.class
+    ));
+  }
+}
+```
+
+And also, it is necessary to register this configuration in the `spring.factories`:
+
+```
+org.springframework.nativex.type.NativeConfiguration=dev.abarmin.graalvm.MyCustomNativeConfiguration
+```
+
+The main disadvantage of this approach is that we still need to be aware of all the classes that will be wrapped with proxies. But we aware that all these classes have `@LogAroundMethod` annotation on top of it. Let's add another class which implements `BeanNativeConfigurationProcessor` interface:
+
+```java
+public class MyBeanNativeConfigurationProcessor implements BeanNativeConfigurationProcessor {
+  @Override
+  public void process(BeanInstanceDescriptor descriptor, NativeConfigurationRegistry registry) {
+    if (descriptor.getUserBeanClass().getAnnotation(LogAroundMethod.class) != null) {
+      final Class<?>[] interfaces = descriptor.getUserBeanClass().getInterfaces();
+      registry.proxy().add(NativeProxyEntry.ofInterfaces(interfaces));
+    }
+  }
+}
+```
+
+And also need to register it in the `spring.factories`:
+
+```
+org.springframework.aot.context.bootstrap.generator.infrastructure.nativex.BeanNativeConfigurationProcessor=\dev.abarmin.graalvm.MyBeanNativeConfigurationProcessor
+```
+
+As a result, all the classes with the given annotation will be automatically registered as proxies.

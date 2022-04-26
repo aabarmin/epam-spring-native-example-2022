@@ -37,16 +37,13 @@ public class LogAroundMethodBeanPostProcessor implements BeanPostProcessor {
     if (!beans.containsKey(beanName)) {
       return bean;
     }
-    final Class<?> beanClass = bean.getClass();
-    return Proxy.newProxyInstance(beanClass.getClassLoader(), beanClass.getInterfaces(), new InvocationHandler() {
-      @Override
-      public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        try {
-          System.out.println("Started at " + LocalDateTime.now());
-          return method.invoke(bean, args);
-        } finally {
-          System.out.println("Ended at " + LocalDateTime.now());
-        }
+    final Class<?> beanClass = beans.get(beanName);
+    return Proxy.newProxyInstance(beanClass.getClassLoader(), beanClass.getInterfaces(), (proxy, method, args) -> {
+      try {
+        System.out.println("Started at " + LocalDateTime.now());
+        return method.invoke(bean, args);
+      } finally {
+        System.out.println("Ended at " + LocalDateTime.now());
       }
     });
   }
