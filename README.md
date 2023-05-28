@@ -30,10 +30,19 @@ The first example is a simple `Hello, World!` application which is built using G
 
 Example is in the `./examples/example-basic` folder.
 
-Execute the following command to build and run it:
+First, build and run it using ordinary JDK distribution:
 
 ```shell
-$ sdk use java 22.0.0.2.r17-grl
+$ sdk use java 17.0.7-amzn
+$ mvn clean compile
+$ cd target/classes
+$ java dev.abarmin.graalvm.HelloWorldApplication
+```
+
+Next, let's do the same to run using Graal JDK distribution:
+
+```shell
+$ sdk use java 22.3.r17-grl
 $ mvn clean compile
 $ cd target/classes
 $ java dev.abarmin.graalvm.HelloWorldApplication
@@ -87,10 +96,46 @@ Moving forward to show limitations of the GraalVM and Native Image. The main lim
 - If native image is built without `--no-fallback` option the code is working but requires JVM for execution.
 - If native image is built with `--no-fallback` option, it's necessary to add configuration for reflection.
 
+First, let's build an image without `--no-fallback` option:
+
+```shell
+$ cd target/classes
+$ native-image dev.abarmin.graalvm.HelloWorldApplication
+
+...
+
+Warning: Reflection method java.lang.Class.getDeclaredMethods invoked at dev.abarmin.graalvm.HelloWorldApplication.main(HelloWorldApplication.java:33)
+Warning: Reflection method java.lang.Class.getDeclaredConstructor invoked at dev.abarmin.graalvm.HelloWorldApplication.main(HelloWorldApplication.java:23)
+Warning: Aborting stand-alone image build due to reflection use without configuration.
+Warning: Use -H:+ReportExceptionStackTraces to print stacktrace of underlying exception
+
+...
+
+Failed generating 'dev.abarmin.graalvm.helloworldapplication' after 13.8s.
+Generating fallback image...
+```
+
+This says that an executable is built, it is a standalone executable but it still executes on JVM, it's not a native image. But still works:
+
+```shell
+$ ./dev.abarmin.graalvm.helloworldapplication dev.abarmin.graalvm.HelloWorldProvider
+Class to be loaded: dev.abarmin.graalvm.HelloWorldProvider
+Class is loaded
+Instance of the class created
+...
+```
+
+Let's build a native executable with `--no-fallback` option to make sure that a real native executable is built:
+
+```shell
+$ mvn clean package -P native
+$ cd target
+```
+
 When the image is built it is possible to run it. When running the following error message will be displayed:
 
 ```shell
-$ target git:(main) ✗ ./hello-world-app dev.abarmin.graalvm.HelloWorldProvider
+$ ./hello-world-app dev.abarmin.graalvm.HelloWorldProvider
 
 Class to be loaded: dev.abarmin.graalvm.HelloWorldProvider
 Exception in thread "main" java.lang.ClassNotFoundException: dev.abarmin.graalvm.HelloWorldProvider
@@ -186,7 +231,6 @@ Another important aspect is that tests are ordinary executed using JVM version o
 
 ```shell
 $ ./mvnw clean package -P native-test
-
 ...
 
 JUnit Platform on Native Image - report
@@ -221,22 +265,37 @@ Test run finished after 7 ms
 
 When a new Spring Boot project is created, it is possible to add Spring Native to the list of dependencies and during the `package` phase pre-configured Apache Maven plugins will build not only fat jars but also native images.
 
-To use this opportunity you have two options:
-
-- add `-P native` to the Apache Maven command (`./mvnw clean package -P native`)
-- use `spring-boot:build-image` Apache Maven goal
-
-In the first case, the executable will be built locally using locally installed GraalVM and Native Image distribution. In the second case, an executable will be built inside a docker container using Buildpacks. As a result, you'll get a Docker image with the native executable inside. That's good because there is no cross-compilation - you can't build a native executable on MacOS and next pack it into the container with Linux inside.
-
-The build itself takes time however the executable then starts very quick:
+Spring uses Buildpacks to build Docker images and by default it can be used by executing the following command:
 
 ```shell
-Example goes here...
+$ mvn spring-boot:build-image
 ```
 
-Nevertheless, everything that is happening under the hood is generation of the `reflect-config.json` file by Spring AOT plugin. Let's take a look into it's capabilities.
+In this scenario, Spring uses Buildpack to build an ordinary fat jar and generates a Docker image from it. Obviously, it does not build native executables but we may ask Spring to do it by adding the `-P native`:
 
-If you run the `spring-aot:generate` goal you'll see that many files are generated for the existing Spring application.
+```shell
+$ mvn spring-boot:build-image -P native
+```
+
+In this case, another Buildpack will be downloaded an it'll take enormous amount of time to build the image. Around 10 minutes. As for example, it is better to do it in advance and show just by changing image name in the `docker-compose.yml` file to `docker.io/library/example-spring-native`.
+
+This approach has advantages because does not require GraalVM to be installed on your computer and also does not require you to create a `Dockerfile` - it'll be taken from the Buildpack. Nevertheless, images became platform-dependant as expected - if you build it on Apple M1 it'll not work on x86_64.
+
+Another option is to use tools installed on your local machine and do not use Docker - it'll take a bit less time because running everything in Docker has performance penalty - just because it is not as quick as your local machine.
+
+```shell
+$ mvn native:compile -P native
+```
+
+We know that Spring uses a lot of reflection under the hood and reflection is the most complicated part for GraalVM - it relies on the closed world assumption which means that everything that is available at compile time is everything you have. Because Spring uses reflection, we need to let Graal know what else should be available at compile time. And here Spring AOT comes into the play and helps us.
+
+If we want to start Spring AOT independently, we need to run:
+
+```shell
+$ mvn clean compile spring-boot:process-aot
+```
+
+It'll generate not only files in `META-INF/native-image` like `reflect-config.json` but also generate bean definitions, autowiring and so on - everything that Spring ordinary does at start time using reflection.
 
 ## Spring Native Hints example
 
@@ -292,59 +351,24 @@ This code will work if started in JDK mode but will not work if a native image i
 org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'dev.abarmin.graalvm.HelloWorldApplication': Unsatisfied dependency expressed through field 'customService'; nested exception is org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'myCustomServiceImpl': Initialization of bean failed; nested exception is com.oracle.svm.core.jdk.UnsupportedFeatureError: Proxy class defined by interfaces [interface dev.abarmin.graalvm.MyCustomService] not found. Generating proxy classes at runtime is not supported. Proxy classes need to be defined at image build time by specifying the list of interfaces that they implement. To define proxy classes use -H:DynamicProxyConfigurationFiles=<comma-separated-config-files> and -H:DynamicProxyConfigurationResources=<comma-separated-config-resources> options.
 ```
 
-Technically, it says that the application does not contain the proxy class. There are a few options to fix it. The simplest one is to add `@NativeHint` to any class annotated with `@Configuration` annotation. Like this:
+Previously, it was possible to put `@NativeHint` annotation on top of any of `@Configuration` classes but at the moment this option is not available and it's necessary to implement `RuntimeHintsRegistrar` interface and next register a class with hints using `@ImportRuntimeHints` annotation:
 
 ```java
-@NativeHint(
-   jdkProxies = @JdkProxyHint(types = {
-       MyCustomService.class
-   })
-)
+public class MyCustomHints implements RuntimeHintsRegistrar {
+    @Override
+    public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
+        hints.proxies().registerJdkProxy(MyCustomService.class);
+        hints.resources().registerPattern("resource-*.txt");
+    }
+}
+```
+
+And importing:
+
+```java
 @SpringBootApplication
+@ImportRuntimeHints(MyCustomHints.class)
 public class HelloWorldApplication implements ApplicationRunner {
   // ...
 }
 ```
-
-This approach works good however it is necessary to be aware of all the JDK proxies in advance. Another disadvantage is that it is necessary to put code in annotations.
-
-Let's use the next approach by introducing own `NativeConfiguration` class.
-
-```java
-public class MyCustomNativeConfiguration implements NativeConfiguration {
-  @Override
-  public void computeHints(NativeConfigurationRegistry registry, AotOptions aotOptions) {
-    registry.proxy().add(NativeProxyEntry.ofInterfaces(
-        MyCustomService.class
-    ));
-  }
-}
-```
-
-And also, it is necessary to register this configuration in the `spring.factories`:
-
-```
-org.springframework.nativex.type.NativeConfiguration=dev.abarmin.graalvm.MyCustomNativeConfiguration
-```
-
-The main disadvantage of this approach is that we still need to be aware of all the classes that will be wrapped with proxies. But we aware that all these classes have `@LogAroundMethod` annotation on top of it. Let's add another class which implements `BeanNativeConfigurationProcessor` interface:
-
-```java
-public class MyBeanNativeConfigurationProcessor implements BeanNativeConfigurationProcessor {
-  @Override
-  public void process(BeanInstanceDescriptor descriptor, NativeConfigurationRegistry registry) {
-    if (descriptor.getUserBeanClass().getAnnotation(LogAroundMethod.class) != null) {
-      final Class<?>[] interfaces = descriptor.getUserBeanClass().getInterfaces();
-      registry.proxy().add(NativeProxyEntry.ofInterfaces(interfaces));
-    }
-  }
-}
-```
-
-And also need to register it in the `spring.factories`:
-
-```
-org.springframework.aot.context.bootstrap.generator.infrastructure.nativex.BeanNativeConfigurationProcessor=\dev.abarmin.graalvm.MyBeanNativeConfigurationProcessor
-```
-
-As a result, all the classes with the given annotation will be automatically registered as proxies.

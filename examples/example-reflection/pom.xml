@@ -9,8 +9,8 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <maven.compiler.release>11</maven.compiler.release>
-    <native.maven.plugin.version>0.9.11</native.maven.plugin.version>
+    <maven.compiler.release>17</maven.compiler.release>
+    <native.maven.plugin.version>0.9.22</native.maven.plugin.version>
     <graalvm.version>22.0.0.2</graalvm.version>
   </properties>
 
