@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:15432/exuser
+    url: jdbc:postgresql://${PG_HOST:localhost}:${PG_PORT:15432}/exuser
     username: exuser
     password: expassword
   liquibase:

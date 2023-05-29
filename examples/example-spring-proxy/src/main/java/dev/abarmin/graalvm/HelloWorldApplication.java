@@ -5,18 +5,13 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.nativex.hint.JdkProxyHint;
-import org.springframework.nativex.hint.NativeHint;
+import org.springframework.context.annotation.ImportRuntimeHints;
 
 /**
  * Hello world!
  */
-//@NativeHint(
-//    jdkProxies = @JdkProxyHint(types = {
-//        MyCustomService.class
-//    })
-//)
 @SpringBootApplication
+//@ImportRuntimeHints(MyCustomHints.class)
 public class HelloWorldApplication implements ApplicationRunner {
   @Autowired
   private MyCustomService customService;

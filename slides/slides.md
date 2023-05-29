@@ -200,6 +200,8 @@ Based on `RootBeanDefinition` Spring AOT finds a suitable `BeanRegistrationWrite
 
 # Summary
 
-Coming soon
+- GraalVM provides significant performance boost by converting existing code
+- Still requires additional meta information due to the closed world assumption
+- Spring Native allows to convert existing Spring app into native image with less efforts
 
 https://github.com/aabarmin/epam-spring-native-example-2022
